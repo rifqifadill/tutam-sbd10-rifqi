@@ -6,8 +6,9 @@ import {
   Calendar, BookOpen, FileText, ListTodo
 } from 'lucide-react';
 
-const TODO_API = 'http://localhost:5000/api/todos';
-const NOTE_API = 'http://localhost:5000/api/notes';
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : '');
+const TODO_API = `${API_BASE_URL}/api/todos`;
+const NOTE_API = `${API_BASE_URL}/api/notes`;
 
 function App() {
   const [activeTab, setActiveTab] = useState('todos');
