@@ -10,7 +10,9 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/todos', async (req, res) => {
+const router = express.Router();
+
+router.get('/todos', async (req, res) => {
   try {
     const todos = await prisma.todo.findMany({
       orderBy: { deadline: 'asc' }
@@ -21,7 +23,7 @@ app.get('/api/todos', async (req, res) => {
   }
 });
 
-app.post('/api/todos', async (req, res) => {
+router.post('/todos', async (req, res) => {
   const { task, course, deadline } = req.body;
   if (!task || !course || !deadline) {
     return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -40,7 +42,7 @@ app.post('/api/todos', async (req, res) => {
   }
 });
 
-app.patch('/api/todos/:id', async (req, res) => {
+router.patch('/todos/:id', async (req, res) => {
   const { id } = req.params;
   const { completed } = req.body;
   try {
@@ -54,7 +56,7 @@ app.patch('/api/todos/:id', async (req, res) => {
   }
 });
 
-app.delete('/api/todos/:id', async (req, res) => {
+router.delete('/todos/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.todo.delete({
@@ -66,7 +68,7 @@ app.delete('/api/todos/:id', async (req, res) => {
   }
 });
 
-app.get('/api/notes', async (req, res) => {
+router.get('/notes', async (req, res) => {
   try {
     const notes = await prisma.note.findMany({
       orderBy: { createdAt: 'desc' }
@@ -77,7 +79,7 @@ app.get('/api/notes', async (req, res) => {
   }
 });
 
-app.post('/api/notes', async (req, res) => {
+router.post('/notes', async (req, res) => {
   const { title, content } = req.body;
   if (!title || !content) {
     return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -92,7 +94,7 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
-app.delete('/api/notes/:id', async (req, res) => {
+router.delete('/notes/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await prisma.note.delete({
@@ -104,9 +106,12 @@ app.delete('/api/notes/:id', async (req, res) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
+
+const apiPrefix = process.env.VERCEL ? '/' : '/api';
+app.use(apiPrefix, router);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
