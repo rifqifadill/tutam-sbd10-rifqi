@@ -159,8 +159,7 @@ router.delete('/notes/:id', authenticateToken, async (req, res) => {
 
 router.get('/health', (req, res) => res.json({ status: 'ok' }));
 
-const apiPrefix = process.env.VERCEL ? '/' : '/api';
-app.use(apiPrefix, router);
+app.use('/api', router);
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 

@@ -3,7 +3,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, CheckCircle, Circle, Loader2, Sun, Moon, Calendar, BookOpen, FileText, ListTodo, X, Edit3, Save, Clock, LogOut, User as UserIcon, Lock, Mail, Sparkles, Leaf } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : 'http://localhost:5000');
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const TODO_API = `${API_BASE_URL}/api/todos`, NOTE_API = `${API_BASE_URL}/api/notes`, AUTH_API = `${API_BASE_URL}/api/auth`;
 
 function App() {
