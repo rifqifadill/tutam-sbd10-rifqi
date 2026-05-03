@@ -3,7 +3,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus, Trash2, CheckCircle, Circle, Loader2, Sun, Moon,
-  Calendar, BookOpen, FileText, ListTodo
+  Calendar, BookOpen, FileText, ListTodo, X, Edit3, Save, RotateCcw, Clock
 } from 'lucide-react';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'development' ? 'http://localhost:5000' : '');
@@ -24,6 +24,19 @@ function App() {
   const [notes, setNotes] = useState([]);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
+
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [itemType, setItemType] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
+
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -105,9 +118,62 @@ function App() {
       } else {
         setNotes(notes.filter(n => n.id !== id));
       }
+      if (selectedItem?.id === id) {
+        setSelectedItem(null);
+        setItemType(null);
+      }
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const openDetail = (item, type) => {
+    setSelectedItem(item);
+    setItemType(type);
+  };
+
+  const closeDetail = () => {
+    setSelectedItem(null);
+    setItemType(null);
+    setIsEditing(false);
+  };
+
+  const startEditing = () => {
+    setEditTitle(selectedItem.title);
+    setEditContent(selectedItem.content);
+    setIsEditing(true);
+  };
+
+  const handleUpdateNote = async () => {
+    if (!editTitle || !editContent) return;
+    setSubmitting(true);
+    try {
+      const res = await axios.patch(`${NOTE_API}/${selectedItem.id}`, {
+        title: editTitle,
+        content: editContent
+      });
+      setNotes(prevNotes => prevNotes.map(n => n.id === selectedItem.id ? res.data : n));
+      closeDetail();
+    } catch (err) {
+      console.error(err);
+      alert('Gagal memperbarui catatan. Silakan coba lagi.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const getCountdown = (deadline) => {
+    const diff = new Date(deadline) - now;
+    if (diff <= 0) return "Waktu Habis";
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    if (days > 0) return `${days} Hari ${hours} Jam ${minutes} Menit ${seconds} Detik`;
+    if (hours > 0) return `${hours} Jam ${minutes} Menit ${seconds} Detik`;
+    return `${minutes} Menit ${seconds} Detik`;
   };
 
   return (
@@ -226,17 +292,18 @@ function App() {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        className={`glass p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-border flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 group transition-all ${todo.completed ? 'opacity-50 grayscale-[0.5]' : ''}`}
+                        onClick={() => openDetail(todo, 'todo')}
+                        className={`glass p-5 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border border-border flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 group transition-all cursor-pointer hover:border-accent/40 ${todo.completed ? 'opacity-50 grayscale-[0.5]' : ''}`}
                       >
                         <div className="flex items-center justify-between w-full sm:w-auto gap-4">
                           <button
-                            onClick={() => toggleTodo(todo.id, todo.completed)}
+                            onClick={(e) => { e.stopPropagation(); toggleTodo(todo.id, todo.completed); }}
                             className="text-accent hover:scale-110 transition-transform flex-shrink-0"
                           >
                             {todo.completed ? <CheckCircle size={32} /> : <Circle size={32} />}
                           </button>
                           <button
-                            onClick={() => deleteItem(todo.id, 'todo')}
+                            onClick={(e) => { e.stopPropagation(); deleteItem(todo.id, 'todo'); }}
                             className="sm:hidden p-2 text-muted hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                           >
                             <Trash2 size={22} />
@@ -253,10 +320,15 @@ function App() {
                             <span className={`flex items-center gap-2 text-sm font-semibold ${new Date(todo.deadline) < new Date() && !todo.completed ? 'text-red-500' : 'text-accent'}`}>
                               <Calendar size={16} /> {new Date(todo.deadline).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                             </span>
+                            {!todo.completed && (
+                              <span className={`flex items-center gap-2 text-xs font-bold uppercase tracking-tighter ${new Date(todo.deadline) < new Date() ? 'text-red-500' : 'text-accent/60'}`}>
+                                <Clock size={14} /> {getCountdown(todo.deadline)}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <button
-                          onClick={() => deleteItem(todo.id, 'todo')}
+                          onClick={(e) => { e.stopPropagation(); deleteItem(todo.id, 'todo'); }}
                           className="hidden sm:block p-3 text-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/10 rounded-xl"
                         >
                           <Trash2 size={22} />
@@ -328,18 +400,19 @@ function App() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 0.9 }}
-                        className="glass p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] border border-border group relative flex flex-col justify-between"
+                        onClick={() => openDetail(note, 'note')}
+                        className="glass p-6 sm:p-8 rounded-[1.5rem] sm:rounded-[2.5rem] border border-border group relative flex flex-col justify-between cursor-pointer hover:border-accent/40 transition-all"
                       >
                         <div>
                           <h3 className="text-xl font-extrabold tracking-tight text-foreground mb-4 pr-10">{note.title}</h3>
-                          <p className="text-muted leading-relaxed whitespace-pre-wrap font-medium text-sm sm:text-base">{note.content}</p>
+                          <p className="text-muted leading-relaxed whitespace-pre-wrap font-medium text-sm sm:text-base line-clamp-4">{note.content}</p>
                         </div>
                         <div className="flex items-center justify-between mt-8">
                           <span className="text-[10px] font-semibold uppercase tracking-widest text-muted/50">
                             {new Date(note.createdAt).toLocaleDateString('id-ID')}
                           </span>
                           <button
-                            onClick={() => deleteItem(note.id, 'note')}
+                            onClick={(e) => { e.stopPropagation(); deleteItem(note.id, 'note'); }}
                             className="p-3 text-muted hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-red-500/10 rounded-xl"
                           >
                             <Trash2 size={20} />
@@ -366,6 +439,172 @@ function App() {
           </p>
         </footer>
       </div>
+
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeDetail}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass w-full max-w-lg rounded-[2.5rem] p-8 sm:p-10 shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-2 bg-accent/20">
+                <motion.div 
+                  initial={{ width: 0 }} 
+                  animate={{ width: "100%" }} 
+                  transition={{ duration: 0.5 }}
+                  className="h-full bg-accent" 
+                />
+              </div>
+
+              <button
+                onClick={closeDetail}
+                className="absolute right-6 top-8 p-2 text-muted hover:text-foreground hover:bg-border/20 rounded-full transition-all"
+              >
+                <X size={24} />
+              </button>
+
+              {itemType === 'todo' ? (
+                <div className="space-y-6 pt-4">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-widest">
+                    Task Details
+                  </div>
+                  <h2 className="text-3xl font-extrabold tracking-tight text-foreground">{selectedItem.task}</h2>
+                  <div className="space-y-4 pt-4 border-t border-border/40">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-accent/10 rounded-2xl text-accent">
+                        <BookOpen size={20} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-muted/50 uppercase tracking-widest">Course</p>
+                        <p className="font-semibold text-foreground text-lg">{selectedItem.course}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-accent/10 rounded-2xl text-accent">
+                        <Calendar size={20} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-muted/50 uppercase tracking-widest">Deadline</p>
+                        <p className="font-semibold text-foreground text-lg">
+                          {new Date(selectedItem.deadline).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}
+                        </p>
+                        {!selectedItem.completed && (
+                          <div className={`mt-2 inline-flex items-center gap-2 px-3 py-1 rounded-lg text-xs font-bold uppercase ${new Date(selectedItem.deadline) < new Date() ? 'bg-red-500/10 text-red-500' : 'bg-accent/10 text-accent'}`}>
+                            <Clock size={14} /> {getCountdown(selectedItem.deadline)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-accent/10 rounded-2xl text-accent">
+                        {selectedItem.completed ? <CheckCircle size={20} /> : <Circle size={20} />}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-muted/50 uppercase tracking-widest">Status</p>
+                        <p className={`font-semibold text-lg ${selectedItem.completed ? 'text-green-500' : 'text-amber-500'}`}>
+                          {selectedItem.completed ? 'Completed' : 'Pending'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {isEditing ? (
+                    <div className="space-y-6 pt-4">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-widest">
+                        Editing Note
+                      </div>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-muted/50 uppercase tracking-widest ml-1">Title</label>
+                          <input
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            className="w-full bg-border/5 border border-border/20 rounded-xl px-4 py-3 text-xl font-bold focus:outline-none focus:border-accent/50 text-foreground transition-all"
+                            placeholder="Judul catatan..."
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold text-muted/50 uppercase tracking-widest ml-1">Content</label>
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            className="w-full bg-border/5 border border-border/20 rounded-xl px-4 py-4 text-base font-medium focus:outline-none focus:border-accent/50 text-muted min-h-[220px] resize-none custom-scrollbar transition-all"
+                            placeholder="Tulis sesuatu..."
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          onClick={handleUpdateNote}
+                          disabled={submitting}
+                          className="flex-1 bg-accent text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:brightness-110 transition-all disabled:opacity-50 shadow-lg shadow-accent/20"
+                        >
+                          {submitting ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                          Update Note
+                        </button>
+                        <button
+                          onClick={() => setIsEditing(false)}
+                          className="px-8 bg-border/10 text-foreground py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-border/20 transition-all"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 pt-4">
+                      <div className="flex justify-between items-center">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-[10px] font-bold uppercase tracking-widest">
+                          Note Details
+                        </div>
+                        <button
+                          onClick={startEditing}
+                          className="p-2.5 text-accent hover:bg-accent/10 rounded-xl transition-all flex items-center gap-2 text-xs font-bold border border-accent/20 hover:border-accent/40"
+                        >
+                          <Edit3 size={16} /> EDIT
+                        </button>
+                      </div>
+                      <h2 className="text-3xl font-extrabold tracking-tight text-foreground leading-tight">{selectedItem.title}</h2>
+                      <div className="max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                        <p className="text-muted leading-relaxed whitespace-pre-wrap font-medium text-lg italic">
+                          "{selectedItem.content}"
+                        </p>
+                      </div>
+                      <div className="pt-6 border-t border-border/40 flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] font-bold text-muted/50 uppercase tracking-widest">Created At</p>
+                          <p className="text-sm font-semibold text-foreground">
+                            {new Date(selectedItem.createdAt).toLocaleDateString('id-ID', { dateStyle: 'long' })}
+                          </p>
+                        </div>
+                        {selectedItem.updatedAt && (
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-muted/50 uppercase tracking-widest">Last Updated</p>
+                            <p className="text-sm font-semibold text-foreground">
+                              {new Date(selectedItem.updatedAt).toLocaleDateString('id-ID', { dateStyle: 'long' })}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

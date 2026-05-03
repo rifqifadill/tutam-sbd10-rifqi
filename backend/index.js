@@ -106,6 +106,20 @@ router.delete('/notes/:id', async (req, res) => {
   }
 });
 
+router.patch('/notes/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+  try {
+    const note = await prisma.note.update({
+      where: { id },
+      data: { title, content }
+    });
+    res.json(note);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
